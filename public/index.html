@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FA23-BCS-047 DevOps App</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f2f5;
+      display: flex;
+      justify-content: center;
+      padding: 40px 16px;
+    }
+    .container {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      padding: 32px;
+      width: 100%;
+      max-width: 600px;
+    }
+    h1 {
+      font-size: 1.6rem;
+      color: #1a1a2e;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+    .input-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+    input[type="text"] {
+      flex: 1;
+      padding: 10px 14px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus { border-color: #4a90e2; }
+    button {
+      padding: 10px 20px;
+      background: #4a90e2;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover { background: #357abd; }
+    button:disabled { background: #a0c4f1; cursor: not-allowed; }
+    #status {
+      font-size: 0.85rem;
+      margin-bottom: 16px;
+      color: #555;
+      min-height: 20px;
+    }
+    #status.error { color: #e74c3c; }
+    #status.success { color: #27ae60; }
+    h2 { font-size: 1.1rem; color: #333; margin-bottom: 12px; }
+    #message-list { list-style: none; }
+    #message-list li {
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
+      border-radius: 6px;
+      padding: 12px 16px;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .msg-text { flex: 1; word-break: break-word; color: #222; }
+    .msg-time { font-size: 0.75rem; color: #888; white-space: nowrap; }
+    .empty { color: #aaa; font-style: italic; text-align: center; padding: 16px 0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>FA23-BCS-047 DevOps App</h1>
+
+    <div class="input-row">
+      <input type="text" id="msg-input" placeholder="Type a message..." />
+      <button id="add-btn" onclick="addMessage()">Add</button>
+    </div>
+    <div id="status"></div>
+
+    <h2>Messages</h2>
+    <ul id="message-list">
+      <li class="empty">Loading...</li>
+    </ul>
+  </div>
+
+  <script>
+    async function fetchMessages() {
+      try {
+        const res = await fetch('/api/messages');
+        const messages = await res.json();
+        renderMessages(messages);
+      } catch (err) {
+        document.getElementById('message-list').innerHTML =
+          '<li class="empty">Failed to load messages.</li>';
+      }
+    }
+
+    function renderMessages(messages) {
+      const list = document.getElementById('message-list');
+      if (!messages.length) {
+        list.innerHTML = '<li class="empty">No messages yet. Add one above!</li>';
+        return;
+      }
+      list.innerHTML = messages.map(m => `
+        <li>
+          <span class="msg-text">${escapeHtml(m.text)}</span>
+          <span class="msg-time">${formatDate(m.created_at)}</span>
+        </li>
+      `).join('');
+    }
+
+    async function addMessage() {
+      const input = document.getElementById('msg-input');
+      const btn = document.getElementById('add-btn');
+      const status = document.getElementById('status');
+      const text = input.value.trim();
+
+      if (!text) {
+        setStatus('Please enter a message.', 'error');
+        return;
+      }
+
+      btn.disabled = true;
+      setStatus('Sending...', '');
+
+      try {
+        const res = await fetch('/api/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text })
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || 'Server error');
+        }
+        input.value = '';
+        setStatus('Message added!', 'success');
+        await fetchMessages();
+      } catch (err) {
+        setStatus('Error: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function setStatus(msg, type) {
+      const el = document.getElementById('status');
+      el.textContent = msg;
+      el.className = type;
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+
+    function formatDate(dt) {
+      if (!dt) return '';
+      return new Date(dt).toLocaleString();
+    }
+
+    // Allow Enter key to submit
+    document.getElementById('msg-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') addMessage();
+    });
+
+    // Load messages on page load
+    fetchMessages();
+  </script>
+</body>
+</html>
