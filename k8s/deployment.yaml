@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: devops-exam
-        image: YOUR_DOCKERHUB_USERNAME/fa23-bcs-047:latest
+        image: faryalnayyar/fa23-bcs-047:latest
         ports:
         - containerPort: 3000
         env:
